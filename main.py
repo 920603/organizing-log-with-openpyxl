@@ -1,89 +1,190 @@
+"""
+TODO:
+    컬럼 (속도, 차로 편측 등) 선택 기능 => 2D listbox?? 
+    그래프 출력 => checkbox
+
+CAVEAT:
+    시나리오 이름에 _ (언더스코어)를 사용하면 안됨
+"""
+
 import os
-import csv
-from openpyxl import Workbook
+import tkinter as tk
+import tkinter.ttk as ttk
+import tkinter.filedialog as fd
+import tkinter.messagebox as msgbox
+from util.generator import Generator
+
+root = tk.Tk()
+root.title("로그 데이터 정리 툴")
+root.geometry("500x600")
+
+frame_1 = tk.Frame(root)
+frame_1.pack(fill="x", padx=10, pady=5)
 
 
-class LogFile:
-    def __init__(self, file_path) -> None:
-        self.file_path = file_path
-        self.file_name = os.path.basename(self.file_path)
-        self.scenario_name = self.file_name.split("_")[3]
+def load_file():
+    file_listbox.delete(0, tk.END)
 
-    def __str__(self) -> str:
-        return self.file_name
+    file_paths = fd.askopenfilenames(filetypes=[("CSV file", "*.csv")])
 
-
-file_paths = [
-    "C:\\Users\\92060\\Documents\\python-projects\\Log_20211001131853_Unknown Road_시나리오1(1시간)_1_0_0_0.csv",
-    "C:\\Users\\92060\\Documents\\python-projects\\Log_20211001132147_Unknown Road_시나리오1(1시간)_2_0_0_0.csv",
-    "C:\\Users\\92060\\Documents\\python-projects\\Log_20211001132310_Unknown Road_시나리오1(1시간)_3_0_0_0.csv",
-]
-
-log_files = [LogFile(file_path) for file_path in file_paths]
-selected_columns = ["speedInKmPerHour", "offsetFromLaneCenter"]
-
-# 분석 시작점의 station 값 (km)
-station = 14.2
-station_cp = station
-
-# 마지막 분석점의 distanceTravelled 값 (m)
-ending_point = 1400
-
-# 분석 시작점의 distanceTravelled 값 (m)
-distance_travelled = 500
-distance_travelled_cp = distance_travelled
-
-# 분석 빈도 (m)
-frequency_in_meter = 10
-frequency_in_kilometer = frequency_in_meter / 1000
-
-wb = Workbook()
-ws = wb.active
-ws.title = "주행 속도" if selected_columns[0] == "speedInKmPerHour" else "차로 편측"
-ws.append(["STA", "distanceTravelled"])
-
-row_num = 2
-
-while distance_travelled_cp <= ending_point:
-    ws.append([station_cp * 1000, distance_travelled_cp])
-    ws[f"A{row_num}"].number_format = '0"+"000.00'
-    row_num += 1
-    station_cp += frequency_in_kilometer
-    distance_travelled_cp += frequency_in_meter
-else:
-    distance_travelled_cp = distance_travelled
-    station_cp = station
+    for file_path in file_paths:
+        file_listbox.insert(tk.END, file_path)
 
 
-with open(log_files[0].file_path, encoding="utf8") as csv_file:
+load_file_btn = tk.Button(frame_1, text="로그 파일 열기", command=load_file)
+load_file_btn.pack(side="left")
 
-    heading = csv_file.__next__()
 
-    output_col = ws.max_column + 1
-    output_row = 2
-    ws.cell(column=output_col, row=1, value=output_col - 2)
+def delete_file():
+    for index in reversed(file_listbox.curselection()):
+        file_listbox.delete(index)
 
-    for dt in range(distance_travelled, ending_point + 1, frequency_in_meter):
-        closest_row = None
 
-        for row in csv.reader(csv_file):
-            if closest_row is None:
-                closest_row = row
-                continue
+delete_file_btn = tk.Button(frame_1, text="선택 삭제", command=delete_file)
+delete_file_btn.pack(side="right")
 
-            prev_difference = float(closest_row[0]) - dt
-            difference = float(row[0]) - dt
 
-            if difference < -2:
-                continue
+frame_2 = tk.Frame(root)
+frame_2.pack(fill="x", padx=10, pady=5)
 
-            if difference > 2:
-                break
+frame_2_top_frame = tk.Frame(frame_2)
+frame_2_top_frame.pack(fill="x")
 
-            if abs(prev_difference) > abs(difference):
-                closest_row = row
+scrollbar_y = tk.Scrollbar(frame_2_top_frame)
+scrollbar_x = tk.Scrollbar(frame_2, orient="horizontal")
+file_listbox = tk.Listbox(
+    frame_2_top_frame,
+    selectmode="extended",
+    height=10,
+    yscrollcommand=scrollbar_y.set,
+    xscrollcommand=scrollbar_x.set,
+)
+scrollbar_y.config(command=file_listbox.yview)
+scrollbar_x.config(command=file_listbox.xview)
 
-        ws.cell(column=output_col, row=output_row, value=closest_row[1])
-        output_row += 1
+file_listbox.pack(side="left", expand=True, fill="x")
+scrollbar_y.pack(side="right", fill="y")
+scrollbar_x.pack(fill="x")
 
-wb.save("done.xlsx")
+frame_3 = tk.Frame(root)
+frame_3.pack(fill="x", padx=10, pady=5)
+
+dest_path_frame = tk.LabelFrame(frame_3, text="저장 경로")
+dest_path_frame.pack(fill="x")
+
+dest_path_entry = tk.Entry(
+    dest_path_frame,
+)
+dest_path_entry.pack(
+    side="left", fill="x", expand=True, padx=5, pady=5, ipadx=3, ipady=3
+)
+
+
+def select_destination():
+    selected_path = fd.askdirectory()
+
+    if selected_path == "":
+        return
+
+    dest_path_entry.delete(0, tk.END)
+    dest_path_entry.insert(0, selected_path)
+
+
+dest_path_btn = tk.Button(dest_path_frame, text="저장 경로 선택", command=select_destination)
+dest_path_btn.pack(side="right", padx=5, pady=5)
+
+
+frame_4 = tk.Frame(root)
+frame_4.pack(fill="x", padx=10, pady=5)
+
+frame_4_top_frame = tk.Frame(frame_4)
+frame_4_top_frame.pack(fill="x")
+
+frame_4_bottom_frame = tk.Frame(frame_4)
+frame_4_bottom_frame.pack(fill="x")
+
+starting_point_frame = tk.LabelFrame(
+    frame_4_top_frame, text="분석 시점 distanceTravelled (m)"
+)
+starting_point_frame.pack(fill="x", side="left", expand=True)
+
+starting_point_entry = tk.Entry(starting_point_frame)
+starting_point_entry.pack(fill="x", expand=True, padx=5, pady=5, ipadx=3, ipady=3)
+
+ending_point_frame = tk.LabelFrame(
+    frame_4_top_frame, text="분석 종점 distanceTravelled (m)"
+)
+ending_point_frame.pack(fill="x", side="right", expand=True)
+
+ending_point_entry = tk.Entry(ending_point_frame)
+ending_point_entry.pack(fill="x", expand=True, padx=5, pady=5, ipadx=3, ipady=3)
+
+starting_station_frame = tk.LabelFrame(frame_4_bottom_frame, text="분석 시점 Station (km)")
+starting_station_frame.pack(fill="x", side="left", expand=True)
+
+starting_station_entry = tk.Entry(starting_station_frame)
+starting_station_entry.pack(fill="x", expand=True, padx=5, pady=5, ipadx=3, ipady=3)
+
+frequency_frame = tk.LabelFrame(frame_4_bottom_frame, text="분석점 빈도 (m)")
+frequency_frame.pack(fill="x", side="right", expand=True)
+
+frequency_entry = tk.Entry(frequency_frame)
+frequency_entry.pack(fill="x", expand=True, padx=5, pady=5, ipadx=3, ipady=3)
+
+
+frame_5 = tk.Frame(root)
+frame_5.pack()
+
+
+def start():
+    if file_listbox.size() == 0:
+        msgbox.showwarning(message="로그 파일을 선택해주세요")
+        return
+
+    if dest_path_entry.get().strip() == "":
+        msgbox.showwarning(message="저장 경로를 선택해주세요.")
+        return
+
+    if not starting_point_entry.get().strip().isdecimal():
+        msgbox.showwarning(
+            message="분석 시작점의 distanceTravelled 값을 미터 단위의 자연수로 입력하세요\n(예. 500)"
+        )
+        return
+
+    if not ending_point_entry.get().strip().isdecimal():
+        msgbox.showwarning(
+            message="분석 종료점의 distanceTravelled 값을 미터 단위의 자연수로 입력하세요\n(예. 1400)"
+        )
+        return
+
+    if not starting_station_entry.get().strip().replace(".", "", 1).isdecimal():
+        msgbox.showwarning(message="분석 시작점의 station 값을 킬로미터 단위로 입력하세요\n(예. 14.2)")
+        return
+
+    if not frequency_entry.get().strip().isdecimal():
+        msgbox.showwarning(message="분석점의 빈도 값을 미터 단위로 입력하세요\n(예. 10)")
+        return
+
+    # file manipulation script here
+    generator = Generator(
+        file_listbox.get(0, tk.END),
+        dest_path_entry.get(),
+        starting_point_entry.get(),
+        ending_point_entry.get(),
+        starting_station_entry.get(),
+        frequency_entry.get(),
+    )
+    generator.generate()
+    msgbox.showinfo(message="완료되었습니다")
+    os.startfile(os.path.realpath(dest_path_entry.get().strip()))
+    ## change `progress_var` and do `progress_bar.update()`
+
+
+start_btn = tk.Button(frame_5, text="시작", command=start)
+start_btn.pack(side="left", padx=5, pady=5)
+
+quit_btn = tk.Button(frame_5, text="종료", command=root.quit)
+quit_btn.pack(side="right", padx=5, pady=5)
+
+
+root.mainloop()
