@@ -2,3 +2,6 @@
 *.xlsx#
 /venv
 /.vscode
+/build
+__pycache__
+*.spec
