@@ -12,6 +12,7 @@ import tkinter as tk
 import tkinter.filedialog as fd
 import tkinter.messagebox as msgbox
 from util.generator import Generator
+from pathlib import Path
 
 root = tk.Tk()
 root.title("로그 데이터 정리 툴")
@@ -169,7 +170,8 @@ def start():
     dest = select_destination()
     wb.save(dest)
 
-    # os.startfile(os.path.realpath(dest_path_entry.get().strip()))
+    msgbox.showinfo(message="완료되었습니다.")
+    os.startfile(os.path.realpath(Path(dest).parent))
     ## change `progress_var` and do `progress_bar.update()`
 
 

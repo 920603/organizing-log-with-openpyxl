@@ -18,8 +18,6 @@ class Generator:
                 last_index = self.file_name.index(")")
                 self.sub_scenario_name = self.file_name[first_index + 1 : last_index]
 
-            print(self.sub_scenario_name)
-
         def __str__(self) -> str:
             return self.file_name
 
