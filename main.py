@@ -9,7 +9,6 @@ CAVEAT:
 
 import os
 import tkinter as tk
-import tkinter.ttk as ttk
 import tkinter.filedialog as fd
 import tkinter.messagebox as msgbox
 from util.generator import Generator
@@ -66,32 +65,22 @@ file_listbox.pack(side="left", expand=True, fill="x")
 scrollbar_y.pack(side="right", fill="y")
 scrollbar_x.pack(fill="x")
 
-frame_3 = tk.Frame(root)
-frame_3.pack(fill="x", padx=10, pady=5)
+# frame_3 = tk.Frame(root)
+# frame_3.pack(fill="x", padx=10, pady=5)
 
-dest_path_frame = tk.LabelFrame(frame_3, text="저장 경로")
-dest_path_frame.pack(fill="x")
+# dest_path_frame = tk.LabelFrame(frame_3, text="저장 경로")
+# dest_path_frame.pack(fill="x")
 
-dest_path_entry = tk.Entry(
-    dest_path_frame,
-)
-dest_path_entry.pack(
-    side="left", fill="x", expand=True, padx=5, pady=5, ipadx=3, ipady=3
-)
-
-
-def select_destination():
-    selected_path = fd.askdirectory()
-
-    if selected_path == "":
-        return
-
-    dest_path_entry.delete(0, tk.END)
-    dest_path_entry.insert(0, selected_path)
+# dest_path_entry = tk.Entry(
+#     dest_path_frame,
+# )
+# dest_path_entry.pack(
+#     side="left", fill="x", expand=True, padx=5, pady=5, ipadx=3, ipady=3
+# )
 
 
-dest_path_btn = tk.Button(dest_path_frame, text="저장 경로 선택", command=select_destination)
-dest_path_btn.pack(side="right", padx=5, pady=5)
+# dest_path_btn = tk.Button(dest_path_frame, text="저장 경로 선택", command=select_destination)
+# dest_path_btn.pack(side="right", padx=5, pady=5)
 
 
 frame_4 = tk.Frame(root)
@@ -136,13 +125,16 @@ frame_5 = tk.Frame(root)
 frame_5.pack()
 
 
+def select_destination():
+    selected_path = fd.asksaveasfilename(
+        filetypes=[("XLSX file", "*.xlsx")], defaultextension="xlsx"
+    )
+    return selected_path
+
+
 def start():
     if file_listbox.size() == 0:
         msgbox.showwarning(message="로그 파일을 선택해주세요")
-        return
-
-    if dest_path_entry.get().strip() == "":
-        msgbox.showwarning(message="저장 경로를 선택해주세요.")
         return
 
     if not starting_point_entry.get().strip().isdecimal():
@@ -168,15 +160,16 @@ def start():
     # file manipulation script here
     generator = Generator(
         file_listbox.get(0, tk.END),
-        dest_path_entry.get(),
         starting_point_entry.get(),
         ending_point_entry.get(),
         starting_station_entry.get(),
         frequency_entry.get(),
     )
-    generator.generate()
-    msgbox.showinfo(message="완료되었습니다")
-    os.startfile(os.path.realpath(dest_path_entry.get().strip()))
+    wb = generator.generate_workbook()
+    dest = select_destination()
+    wb.save(dest)
+
+    # os.startfile(os.path.realpath(dest_path_entry.get().strip()))
     ## change `progress_var` and do `progress_bar.update()`
 
 

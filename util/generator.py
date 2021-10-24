@@ -7,10 +7,18 @@ from openpyxl.utils import get_column_letter
 
 class Generator:
     class LogFile:
-        def __init__(self, file_path) -> None:
+        def __init__(self, file_path: str) -> None:
             self.file_path = file_path
             self.file_name = os.path.basename(file_path)
             self.scenario_name = self.file_name.split("_")[3]
+            self.sub_scenario_name = None
+
+            if "(" in self.file_name:
+                first_index = self.file_name.index("(")
+                last_index = self.file_name.index(")")
+                self.sub_scenario_name = self.file_name[first_index + 1 : last_index]
+
+            print(self.sub_scenario_name)
 
         def __str__(self) -> str:
             return self.file_name
@@ -18,7 +26,6 @@ class Generator:
     def __init__(
         self,
         file_paths: list[str],
-        output_path: str,
         # 분석 시점의 distanceTravelled 값 (meter)
         starting_point: str,
         # 분석 종점의 distanceTravelled 값 (meter)
@@ -32,10 +39,9 @@ class Generator:
         self.grouped_log_files = [
             list(g)
             for _, g in itertools.groupby(
-                log_files, key=lambda file: file.scenario_name
+                log_files, key=lambda file: file.sub_scenario_name
             )
         ]
-        self.output_path = output_path
         self.starting_point = int(starting_point)
         self.ending_point = int(ending_point)
         self.starting_station = float(starting_station)
@@ -43,16 +49,19 @@ class Generator:
         self.frequency_in_kilometer = int(frequency) / 1000
         self.selected_columns = ["speedInKmPerHour", "offsetFromLaneCenter"]
 
-    def generate(self):
+    def generate_workbook(self) -> Workbook:
+
+        wb = Workbook()
+        wb.remove(wb.active)
 
         for group in self.grouped_log_files:
 
-            wb = Workbook()
-            wb.remove(wb.active)
-
             for selected_column in self.selected_columns:
                 ws = wb.create_sheet()
-                ws.title = "주행속도" if selected_column == "speedInKmPerHour" else "차로편측"
+                ws.title = f"주행속도" if selected_column == "speedInKmPerHour" else f"차로편측"
+
+                if group[0].sub_scenario_name is not None:
+                    ws.title = ws.title + f"_{group[0].sub_scenario_name}"
 
                 # insert first two columns (STA, distanceTravelled)
                 ws.append(["STA", "distanceTravelled"])
@@ -128,4 +137,4 @@ class Generator:
                         value=f"=AVERAGE({'C' + str(row)}:{get_column_letter(AVERAGE_OUT_COL - 1) + str(row)})",
                     )
 
-            wb.save(f"{self.output_path}\{group[0].scenario_name}.xlsx")
+        return wb
