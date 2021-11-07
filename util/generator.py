@@ -34,10 +34,11 @@ class Generator:
         frequency: str,
     ) -> None:
         log_files = [self.LogFile(file_path) for file_path in file_paths]
+        sorted_log_files = sorted(log_files, key=lambda file: file.sub_scenario_name)
         self.grouped_log_files = [
             list(g)
             for _, g in itertools.groupby(
-                log_files, key=lambda file: file.sub_scenario_name
+                sorted_log_files, key=lambda file: file.sub_scenario_name
             )
         ]
         self.starting_point = int(starting_point)
@@ -73,7 +74,7 @@ class Generator:
                             dt,
                         ]
                     )
-                    ws[f"A{row_num}"].number_format = '0"+"000.00'
+                    ws[f"A{row_num}"].number_format = '0"+"000'
                     row_num += 1
 
                 for log_file in group:
