@@ -15,7 +15,7 @@ from util.generator import Generator
 from pathlib import Path
 
 root = tk.Tk()
-root.title("로그 데이터 정리 툴")
+root.title("UC-win/Road 로그 데이터 정리 툴")
 root.geometry("500x600")
 
 frame_1 = tk.Frame(root)

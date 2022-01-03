@@ -1,8 +1,7 @@
 import os, itertools, csv
-from tkinter import DoubleVar
-from tkinter.ttk import Progressbar
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
+from openpyxl.chart import LineChart, Reference
 
 
 class Generator:
@@ -51,11 +50,16 @@ class Generator:
     def generate_workbook(self) -> Workbook:
 
         wb = Workbook()
-        wb.remove(wb.active)
+        chart_sheet = wb.active
+        chart_sheet.title = "그래프"
+
+        chart_out_row = 0
 
         for group in self.grouped_log_files:
+            chart_out_col = 0
 
             for selected_column in self.selected_columns:
+
                 ws = wb.create_sheet()
                 ws.title = f"주행속도" if selected_column == "speedInKmPerHour" else f"차로편측"
 
@@ -123,6 +127,7 @@ class Generator:
                             )
                             out_row += 1
 
+                # 평균값 컬럼 생성
                 AVERAGE_OUT_COL = ws.max_column + 1
 
                 for row in range(1, ws.max_row + 1):
@@ -136,4 +141,44 @@ class Generator:
                         value=f"=AVERAGE({'C' + str(row)}:{get_column_letter(AVERAGE_OUT_COL - 1) + str(row)})",
                     )
 
+                # 차트 생성
+                chart = LineChart()
+                chart.title = ws.title
+                chart.style = 2
+
+                # y축 정보 입력
+                chart.y_axis.title = (
+                    f"주행속도 (km/h)"
+                    if selected_column == "speedInKmPerHour"
+                    else f"차로편측 (m)"
+                )
+                data = Reference(
+                    ws,
+                    min_col=AVERAGE_OUT_COL,
+                    min_row=2,
+                    max_col=AVERAGE_OUT_COL,
+                    max_row=ws.max_row,
+                )
+                chart.add_data(data, titles_from_data=True)
+
+                # x축 정보 입력
+                chart.x_axis.title = "STA. (km)"
+                labels = Reference(
+                    ws,
+                    min_col=1,
+                    min_row=2,
+                    max_col=1,
+                    max_row=ws.max_row,
+                )
+                chart.set_categories(labels)
+
+                chart.legend = None
+                chart_sheet.add_chart(
+                    chart,
+                    f"{get_column_letter(2 + chart_out_col * 10)}{2 + chart_out_row * 15}",
+                )
+
+                chart_out_col += 1
+
+            chart_out_row += 1
         return wb
