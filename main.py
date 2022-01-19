@@ -157,22 +157,22 @@ def start():
     if not frequency_entry.get().strip().isdecimal():
         msgbox.showwarning(message="분석점의 빈도 값을 미터 단위로 입력하세요\n(예. 10)")
         return
+    try:
+        generator = Generator(
+            file_listbox.get(0, tk.END),
+            starting_point_entry.get(),
+            ending_point_entry.get(),
+            starting_station_entry.get(),
+            frequency_entry.get(),
+        )
+        wb = generator.generate_workbook()
+        dest = select_destination()
+        wb.save(dest)
 
-    # file manipulation script here
-    generator = Generator(
-        file_listbox.get(0, tk.END),
-        starting_point_entry.get(),
-        ending_point_entry.get(),
-        starting_station_entry.get(),
-        frequency_entry.get(),
-    )
-    wb = generator.generate_workbook()
-    dest = select_destination()
-    wb.save(dest)
-
-    msgbox.showinfo(message="완료되었습니다.")
-    os.startfile(os.path.realpath(Path(dest).parent))
-    ## change `progress_var` and do `progress_bar.update()`
+        msgbox.showinfo(message="완료되었습니다.")
+        os.startfile(os.path.realpath(Path(dest).parent))
+    except Exception as error:
+        msgbox.showerror(message=error.args[0])
 
 
 start_btn = tk.Button(frame_5, text="시작", command=start)

@@ -4,22 +4,23 @@ from openpyxl.utils import get_column_letter
 from openpyxl.chart import LineChart, Reference
 
 
+class LogFile:
+    def __init__(self, file_path: str) -> None:
+        self.file_path = file_path
+        self.file_name = os.path.basename(file_path)
+        self.scenario_name = self.file_name.split("_")[3]
+        self.sub_scenario_name: str | None = None
+
+        if "(" in self.file_name:
+            first_index = self.file_name.index("(")
+            last_index = self.file_name.index(")")
+            self.sub_scenario_name = self.file_name[first_index + 1 : last_index]
+
+    def __str__(self) -> str:
+        return self.file_name
+
+
 class Generator:
-    class LogFile:
-        def __init__(self, file_path: str) -> None:
-            self.file_path = file_path
-            self.file_name = os.path.basename(file_path)
-            self.scenario_name = self.file_name.split("_")[3]
-            self.sub_scenario_name = None
-
-            if "(" in self.file_name:
-                first_index = self.file_name.index("(")
-                last_index = self.file_name.index(")")
-                self.sub_scenario_name = self.file_name[first_index + 1 : last_index]
-
-        def __str__(self) -> str:
-            return self.file_name
-
     def __init__(
         self,
         file_paths: list[str],
@@ -32,20 +33,54 @@ class Generator:
         # 분석 구간 빈도 (meter)
         frequency: str,
     ) -> None:
-        log_files = [self.LogFile(file_path) for file_path in file_paths]
-        sorted_log_files = sorted(log_files, key=lambda file: file.sub_scenario_name)
-        self.grouped_log_files = [
-            list(g)
-            for _, g in itertools.groupby(
-                sorted_log_files, key=lambda file: file.sub_scenario_name
-            )
-        ]
         self.starting_point = int(starting_point)
         self.ending_point = int(ending_point)
         self.starting_station = float(starting_station)
         self.frequency = int(frequency)
         self.frequency_in_kilometer = int(frequency) / 1000
-        self.selected_columns = ["speedInKmPerHour", "offsetFromLaneCenter"]
+        self.selected_columns = ["speedInKmPerHour", "offsetFromLaneCenter", "EEG"]
+
+        log_files = [LogFile(file_path) for file_path in file_paths]
+        self.grouped_log_files: list[list[LogFile]] = [log_files]
+
+        if log_files[0].sub_scenario_name is not None:
+            sorted_log_files = sorted(
+                log_files, key=lambda file: file.sub_scenario_name
+            )
+            self.grouped_log_files = [
+                list(g)
+                for _, g in itertools.groupby(
+                    sorted_log_files, key=lambda file: file.sub_scenario_name
+                )
+            ]
+
+    def translate_selected_column_name(self, selected_column: str) -> str:
+        translation: str = selected_column
+
+        if selected_column == "offsetFromLaneCenter":
+            translation = "차로편측"
+        elif selected_column == "speedInKmPerHour":
+            translation = "주행속도"
+        elif selected_column == "EEG":
+            translation = "뇌파"
+
+        return translation
+
+    def get_index_of_column(self, columns: list[str], target_column: str):
+        target_column_index: int = -1
+
+        for i, col_name in enumerate(columns):
+            if col_name == target_column:
+                target_column_index = i
+
+        return target_column_index
+
+    def represents_float(self, string: str) -> bool:
+        try:
+            float(string)
+            return True
+        except ValueError:
+            return False
 
     def generate_workbook(self) -> Workbook:
 
@@ -61,10 +96,11 @@ class Generator:
             for selected_column in self.selected_columns:
 
                 ws = wb.create_sheet()
-                ws.title = f"주행속도" if selected_column == "speedInKmPerHour" else f"차로편측"
+
+                ws.title = self.translate_selected_column_name(selected_column)
 
                 if group[0].sub_scenario_name is not None:
-                    ws.title = ws.title + f"_{group[0].sub_scenario_name}"
+                    ws.title = f"{ws.title}_{group[0].sub_scenario_name}"
 
                 # insert first two columns (STA, distanceTravelled)
                 ws.append(["STA", "distanceTravelled"])
@@ -86,8 +122,17 @@ class Generator:
                     out_row = 2
 
                     with open(log_file.file_path, encoding="utf8") as csv_file:
-
                         heading = csv_file.__next__()
+                        if selected_column not in heading:
+                            break
+
+                        selected_column_index = self.get_index_of_column(
+                            heading.split(","), selected_column
+                        )
+                        distanceTravelled_index = self.get_index_of_column(
+                            heading.split(","), "distanceTravelled"
+                        )
+
                         ws.cell(column=OUT_COL, row=1, value=OUT_COL - 2)
 
                         for dt in range(
@@ -100,8 +145,10 @@ class Generator:
                                     closest_row = row
                                     continue
 
-                                prev_difference = float(closest_row[0]) - dt
-                                difference = float(row[0]) - dt
+                                prev_difference = (
+                                    float(closest_row[distanceTravelled_index]) - dt
+                                )
+                                difference = float(row[distanceTravelled_index]) - dt
 
                                 if difference < -2:
                                     continue
@@ -112,18 +159,22 @@ class Generator:
                                 if abs(prev_difference) > abs(difference):
                                     closest_row = row
 
+                            if closest_row is None:
+                                raise Exception("분석 시점과 종점 값을 다시 확인해주세요")
+
+                            closest_row_value: float | str
+
+                            if self.represents_float(
+                                closest_row[selected_column_index]
+                            ):
+                                closest_row_value = abs(
+                                    float(closest_row[selected_column_index])
+                                )
+                            else:
+                                closest_row_value = closest_row[selected_column_index]
+
                             ws.cell(
-                                column=OUT_COL,
-                                row=out_row,
-                                value=abs(
-                                    float(
-                                        closest_row[
-                                            1
-                                            if selected_column == "speedInKmPerHour"
-                                            else 2
-                                        ]
-                                    )
-                                ),
+                                column=OUT_COL, row=out_row, value=closest_row_value
                             )
                             out_row += 1
 
@@ -147,10 +198,8 @@ class Generator:
                 chart.style = 2
 
                 # y축 정보 입력
-                chart.y_axis.title = (
-                    f"주행속도 (km/h)"
-                    if selected_column == "speedInKmPerHour"
-                    else f"차로편측 (m)"
+                chart.y_axis.title = self.translate_selected_column_name(
+                    selected_column
                 )
                 data = Reference(
                     ws,
@@ -170,7 +219,7 @@ class Generator:
                     max_col=1,
                     max_row=ws.max_row,
                 )
-                chart.set_categories(labels)
+                chart.set_categories(labels) 
 
                 chart.legend = None
                 chart_sheet.add_chart(
