@@ -38,7 +38,7 @@ class Generator:
         self.starting_station = float(starting_station)
         self.frequency = int(frequency)
         self.frequency_in_kilometer = int(frequency) / 1000
-        self.selected_columns = ["speedInKmPerHour", "offsetFromLaneCenter", "EEG"]
+        self.selected_columns = ["speedInKmPerHour", "offsetFromLaneCenter", "Theta"]
 
         log_files = [LogFile(file_path) for file_path in file_paths]
         self.grouped_log_files: list[list[LogFile]] = [log_files]
@@ -61,7 +61,7 @@ class Generator:
             translation = "차로편측"
         elif selected_column == "speedInKmPerHour":
             translation = "주행속도"
-        elif selected_column == "EEG":
+        elif selected_column == "Theta":
             translation = "뇌파"
 
         return translation
