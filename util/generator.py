@@ -1,4 +1,6 @@
-import os, itertools, csv
+import os
+import itertools
+import csv
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.chart import LineChart, Reference
@@ -14,7 +16,7 @@ class LogFile:
         if "(" in self.file_name:
             first_index = self.file_name.index("(")
             last_index = self.file_name.index(")")
-            self.sub_scenario_name = self.file_name[first_index + 1 : last_index]
+            self.sub_scenario_name = self.file_name[first_index + 1: last_index]
 
     def __str__(self) -> str:
         return self.file_name
@@ -38,7 +40,8 @@ class Generator:
         self.starting_station = float(starting_station)
         self.frequency = int(frequency)
         self.frequency_in_kilometer = int(frequency) / 1000
-        self.selected_columns = ["speedInKmPerHour", "offsetFromLaneCenter", "Theta"]
+        self.selected_columns = ["speedInKmPerHour",
+                                 "offsetFromLaneCenter", "Theta"]
 
         log_files = [LogFile(file_path) for file_path in file_paths]
         self.grouped_log_files: list[list[LogFile]] = [log_files]
@@ -54,13 +57,13 @@ class Generator:
                 )
             ]
 
-    def translate_selected_column_name(self, selected_column: str) -> str:
+    def translate_selected_column_name(self, selected_column: str, *, isChart: bool = False) -> str:
         translation: str = selected_column
 
         if selected_column == "offsetFromLaneCenter":
-            translation = "차로편측"
+            translation = "차로편측 (m)" if isChart else "차로편측"
         elif selected_column == "speedInKmPerHour":
-            translation = "주행속도"
+            translation = "주행속도 (km/h)" if isChart else "주행속도"
         elif selected_column == "Theta":
             translation = "뇌파"
 
@@ -70,7 +73,7 @@ class Generator:
         target_column_index: int = -1
 
         for i, col_name in enumerate(columns):
-            if col_name == target_column:
+            if target_column in col_name:
                 target_column_index = i
 
         return target_column_index
@@ -146,9 +149,11 @@ class Generator:
                                     continue
 
                                 prev_difference = (
-                                    float(closest_row[distanceTravelled_index]) - dt
+                                    float(
+                                        closest_row[distanceTravelled_index]) - dt
                                 )
-                                difference = float(row[distanceTravelled_index]) - dt
+                                difference = float(
+                                    row[distanceTravelled_index]) - dt
 
                                 if difference < -2:
                                     continue
@@ -199,7 +204,8 @@ class Generator:
 
                 # y축 정보 입력
                 chart.y_axis.title = self.translate_selected_column_name(
-                    selected_column
+                    selected_column,
+                    isChart=True
                 )
                 data = Reference(
                     ws,
@@ -211,7 +217,7 @@ class Generator:
                 chart.add_data(data, titles_from_data=True)
 
                 # x축 정보 입력
-                chart.x_axis.title = "STA. (km)"
+                chart.x_axis.title = "STA."
                 labels = Reference(
                     ws,
                     min_col=1,
@@ -219,7 +225,7 @@ class Generator:
                     max_col=1,
                     max_row=ws.max_row,
                 )
-                chart.set_categories(labels) 
+                chart.set_categories(labels)
 
                 chart.legend = None
                 chart_sheet.add_chart(

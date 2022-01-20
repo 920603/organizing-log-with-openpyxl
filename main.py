@@ -172,6 +172,7 @@ def start():
         msgbox.showinfo(message="완료되었습니다.")
         os.startfile(os.path.realpath(Path(dest).parent))
     except Exception as error:
+        print(error.args)
         msgbox.showerror(message=error.args[0])
 
 
