@@ -157,6 +157,7 @@ def start():
     if not frequency_entry.get().strip().isdecimal():
         msgbox.showwarning(message="분석점의 빈도 값을 미터 단위로 입력하세요\n(예. 10)")
         return
+    
     try:
         generator = Generator(
             file_listbox.get(0, tk.END),
@@ -171,9 +172,14 @@ def start():
 
         msgbox.showinfo(message="완료되었습니다.")
         os.startfile(os.path.realpath(Path(dest).parent))
+    except FileNotFoundError:
+        msgbox.showerror(message="결과 파일의 저장 위치를 선택해주세요")
     except Exception as error:
-        print(error.args)
         msgbox.showerror(message=error.args[0])
+    else:
+        # 예외 없이 결과 파일이 출력된 경우
+        # 선택된 로그 파일들을 제거하기
+        file_listbox.delete(0, tk.END)
 
 
 start_btn = tk.Button(frame_5, text="시작", command=start)
